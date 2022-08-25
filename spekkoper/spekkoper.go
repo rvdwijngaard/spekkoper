@@ -7,17 +7,17 @@ import (
 
 	"encore.app/marktplaats"
 	"encore.dev/beta/errs"
-	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/sqldb"
 	"github.com/samber/lo"
 )
 
-type NewQueryResultEvent struct{ UserID string }
-
-var Results = pubsub.NewTopic[*NewQueryResultEvent]("results", pubsub.TopicConfig{
-	DeliveryGuarantee: pubsub.AtLeastOnce,
-})
+//
+//type NewQueryResultEvent struct{ UserID string }
+//
+//var Results = pubsub.NewTopic[*NewQueryResultEvent]("results", pubsub.TopicConfig{
+//	DeliveryGuarantee: pubsub.AtLeastOnce,
+//})
 
 //
 //// Send a welcome email to everyone who signed up in the last two hours.
@@ -46,7 +46,7 @@ func CheckAll(ctx context.Context) error {
 			Category:           u.Category,
 			SubCategory:        u.SubCategory,
 		})
-		Results.Publish(ctx, &NewQueryResultEvent{UserID: u.ID})
+		//Results.Publish(ctx, &NewQueryResultEvent{UserID: u.ID})
 	}
 
 	return nil
