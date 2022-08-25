@@ -7,30 +7,27 @@ import (
 
 	"encore.app/marktplaats"
 	"encore.dev/beta/errs"
-	"encore.dev/cron"
-	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/sqldb"
 	"github.com/samber/lo"
 )
 
-type NewQueryResultEvent struct{ UserID string }
-
-var Results = pubsub.NewTopic[*NewQueryResultEvent]("results", pubsub.TopicConfig{
-	DeliveryGuarantee: pubsub.AtLeastOnce,
-})
-
-// Send a welcome email to everyone who signed up in the last two hours.
-var _ = cron.NewJob("welcome-email", cron.JobConfig{
-	Title:    "Send welcome emails",
-	Every:    1 * cron.Minute,
-	Endpoint: CheckAll,
-})
-
-// SendWelcomeEmail emails everyone who signed up recently.
-// It's idempotent: it only sends a welcome email to each person once.
+//type NewQueryResultEvent struct{ UserID string }
 //
-//encore:api private
+//var Results = pubsub.NewTopic[*NewQueryResultEvent]("results", pubsub.TopicConfig{
+//	DeliveryGuarantee: pubsub.AtLeastOnce,
+//})
+//
+//// Send a welcome email to everyone who signed up in the last two hours.
+//var _ = cron.NewJob("welcome-email", cron.JobConfig{
+//	Title:    "Send welcome emails",
+//	Every:    1 * cron.Minute,
+//	Endpoint: CheckAll,
+//})
+
+// CheckAll checks all registered queries for changes
+//
+//encore:api public
 func CheckAll(ctx context.Context) error {
 	queries, err := getAllRegisteredQueries(ctx)
 	if err != nil {
@@ -47,7 +44,7 @@ func CheckAll(ctx context.Context) error {
 			Category:           u.Category,
 			SubCategory:        u.SubCategory,
 		})
-		Results.Publish(ctx, &NewQueryResultEvent{UserID: u.ID})
+		//Results.Publish(ctx, &NewQueryResultEvent{UserID: u.ID})
 	}
 
 	return nil
