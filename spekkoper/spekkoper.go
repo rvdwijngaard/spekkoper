@@ -89,6 +89,7 @@ type RegisterNewQueryResponse struct {
 //encore:api public path=/register method=POST
 func RegisterNewQuery(ctx context.Context, p Query) (*RegisterNewQueryResponse, error) {
 	rlog.Debug(p.Query)
+	rlog.Debug("Foo")
 	id, err := generateID()
 	if err != nil {
 		return nil, err
