@@ -7,7 +7,6 @@ import (
 
 	"encore.app/marktplaats"
 	"encore.dev/beta/errs"
-	"encore.dev/rlog"
 	"encore.dev/storage/sqldb"
 	"github.com/samber/lo"
 )
@@ -80,25 +79,19 @@ type Query struct {
 	DistanceMeters int
 }
 
-type RegisterNewQueryResponse struct {
-	ID       string
-	Location string `header:"Location"`
-}
-
 //encore:api public path=/register method=POST
-func RegisterNewQuery(ctx context.Context, p Query) (*RegisterNewQueryResponse, error) {
-	rlog.Debug(p.Query)
-	rlog.Debug("fss")
+func RegisterNewQuery(ctx context.Context, p Query) (*Query, error) {
 	id, err := generateID()
 	if err != nil {
 		return nil, err
 	} else if err := insert(ctx, id, p.Query, p.Category, p.SubCategory, p.PostCode, p.DistanceMeters); err != nil {
 		return nil, err
 	}
-	return &RegisterNewQueryResponse{ID: id, Location: "/check/" + id}, nil
+	p.ID = id
+	return &p, nil
 }
 
-// Get retrieves the original URL for the id.
+// Get retrieves the query configuration for the id.
 //
 //encore:api public method=GET path=/query/:id
 func Get(ctx context.Context, id string) (*Query, error) {
@@ -155,10 +148,10 @@ type PriceInfo struct {
 }
 
 //encore:api path=/check/:id
-func Check(ctx context.Context, id string) (QueryResponse, error) {
+func Check(ctx context.Context, id string) (*QueryResponse, error) {
 	q, err := get(ctx, id)
 	if err != nil {
-		return QueryResponse{}, err
+		return nil, err
 	}
 
 	res, err := marktplaats.Query(ctx, marktplaats.QueryRequest{
@@ -172,7 +165,7 @@ func Check(ctx context.Context, id string) (QueryResponse, error) {
 		SubCategory:        q.SubCategory,
 	})
 	if err != nil {
-		return QueryResponse{}, err
+		return nil, err
 	}
 
 	bar := lo.Map(res.Advertisements, func(v marktplaats.Advertisement, _ int) Advertisement {
@@ -184,8 +177,71 @@ func Check(ctx context.Context, id string) (QueryResponse, error) {
 			URL:       v.URL,
 		}
 	})
-	foo := QueryResponse{
-		Advertisements: bar,
+
+	stored, err := getResultIDsFromDB(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	newAds := lo.Filter(bar, func(advertisement Advertisement, _ int) bool {
+		return !lo.Contains(stored, advertisement.ID)
+	})
+
+	tx, err := sqldb.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// get results of the current stuff
+	lo.ForEach(newAds, func(advertisement Advertisement, _ int) {
+		err = storeResult(ctx, id, advertisement)
+	})
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			//rlog.Error(err)
+		}
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, errs.Wrap(err, "could not write query results to db")
+	}
+
+	foo := &QueryResponse{
+		Advertisements: newAds,
 	}
 	return foo, nil
+}
+
+func storeResult(ctx context.Context, queryID string, advertisement Advertisement) error {
+	_, err := sqldb.Exec(ctx, `
+        INSERT INTO query_result (query_id, result_id)
+        VALUES ($1, $2)
+    `, queryID, advertisement.ID)
+
+	return err
+}
+
+func getResultIDsFromDB(ctx context.Context, queryID string) ([]string, error) {
+	query := `
+		SELECT result_id
+        FROM query_result 
+        WHERE id = $1
+	`
+	rows, err := sqldb.Query(ctx, query, queryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+
+		err := rows.Scan(&id)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
