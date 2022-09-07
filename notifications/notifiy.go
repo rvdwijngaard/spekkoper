@@ -7,6 +7,7 @@ import (
 
 	"encore.app/spekkoper"
 	"encore.dev/pubsub"
+	"github.com/samber/lo"
 )
 
 var _ = pubsub.NewSubscription(
@@ -20,7 +21,9 @@ func SendWelcomeEmail(ctx context.Context, event *spekkoper.NewQueryResultEvent)
 	req, _ := http.NewRequest("POST", "https://ntfy.sh/spekkoper",
 		strings.NewReader(`New advertisement. 🐶`))
 	req.Header.Set("Click", event.Advertisement.URL)
-	//req.Header.Set("Attach", "https://nest.com/view/yAxkasd.jpg")
+	lo.ForEach(event.Advertisement.ImageUrls, func(url string, _ int) {
+		req.Header.Set("Attach", url)
+	})
 	//req.Header.Set("Actions", "http, Open door, https://api.nest.com/open/yAxkasd, clear=true")
 	req.Header.Set("Email", "ronvanderwijngaard@kliksafe.nl")
 	_, err := http.DefaultClient.Do(req)
