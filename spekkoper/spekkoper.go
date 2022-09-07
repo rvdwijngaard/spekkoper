@@ -7,6 +7,7 @@ import (
 
 	"encore.app/marktplaats"
 	"encore.dev/beta/errs"
+	"encore.dev/cron"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
 	"encore.dev/storage/sqldb"
@@ -40,31 +41,23 @@ var NewAds = pubsub.NewTopic[*NewQueryResultEvent]("new-advertisements", pubsub.
 	DeliveryGuarantee: pubsub.AtLeastOnce,
 })
 
-//
-//// Send a welcome email to everyone who signed up in the last two hours.
-//var _ = cron.NewJob("welcome-email", cron.JobConfig{
-//	Title:    "Send welcome emails",
-//	Every:    1 * cron.Minute,
-//	Endpoint: CheckAll,
-//})
+// Periodically check all registered queries for new advertisements
+var _ = cron.NewJob("run-all-registered-queries", cron.JobConfig{
+	Title:    "Run all registered queries",
+	Every:    1 * cron.Minute,
+	Endpoint: CheckAll,
+})
 
+//encore:api private
 func (srv *Service) CheckAll(ctx context.Context) error {
 	queries, err := getAllRegisteredQueries(ctx)
 	if err != nil {
 		return errs.Wrap(err, "failed to list all registered queries")
 	}
 	for _, u := range queries {
-		srv.marktplaats.Query(ctx, marktplaats.QueryRequest{
-			Query:              u.Query,
-			PostCode:           u.PostCode,
-			DistanceMeters:     u.DistanceMeters,
-			Limit:              0,
-			Offset:             0,
-			IncludeCommercials: false,
-			Category:           u.Category,
-			SubCategory:        u.SubCategory,
-		})
-		//NewAds.Publish(ctx, &NewQueryResultEvent{UserID: u.ID})
+		if _, err := srv.Run(ctx, u.ID); err != nil {
+			rlog.Error("could not run query", "err", err)
+		}
 	}
 
 	return nil
