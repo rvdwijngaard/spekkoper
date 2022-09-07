@@ -49,7 +49,11 @@ var _ = cron.NewJob("run-all-registered-queries", cron.JobConfig{
 })
 
 //encore:api private
-func (srv *Service) CheckAll(ctx context.Context) error {
+func CheckAll(ctx context.Context) error {
+	srv :=
+		&Service{
+			marktplaats: &mclient{},
+		}
 	queries, err := getAllRegisteredQueries(ctx)
 	if err != nil {
 		return errs.Wrap(err, "failed to list all registered queries")
@@ -59,7 +63,6 @@ func (srv *Service) CheckAll(ctx context.Context) error {
 			rlog.Error("could not run query", "err", err)
 		}
 	}
-
 	return nil
 }
 
