@@ -162,7 +162,7 @@ type RunParams struct {
 
 // Run executes a stored query
 //
-//encore:api path=/query/:id/run
+//encore:api public path=/query/:id/run
 func (srv *Service) Run(ctx context.Context, id string) (*QueryResponse, error) {
 	q, err := get(ctx, id)
 	if err != nil {

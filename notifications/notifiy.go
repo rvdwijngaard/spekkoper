@@ -22,7 +22,7 @@ func SendWelcomeEmail(ctx context.Context, event *spekkoper.NewQueryResultEvent)
 		strings.NewReader(`New advertisement. 🐶`))
 	req.Header.Set("Click", event.Advertisement.URL)
 	lo.ForEach(event.Advertisement.ImageUrls, func(url string, _ int) {
-		req.Header.Set("Attach", url)
+		req.Header.Set("Attach", "https:"+url)
 	})
 	//req.Header.Set("Actions", "http, Open door, https://api.nest.com/open/yAxkasd, clear=true")
 	req.Header.Set("Email", "ronvanderwijngaard@kliksafe.nl")
