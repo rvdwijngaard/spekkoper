@@ -7,6 +7,8 @@ import (
 
 	"encore.app/marktplaats"
 	"encore.dev/beta/errs"
+	"encore.dev/pubsub"
+	"encore.dev/rlog"
 	"encore.dev/storage/sqldb"
 	"github.com/samber/lo"
 )
@@ -32,12 +34,11 @@ func initService() (*Service, error) {
 	}, nil
 }
 
-//
-//type NewQueryResultEvent struct{ UserID string }
-//
-//var Results = pubsub.NewTopic[*NewQueryResultEvent]("results", pubsub.TopicConfig{
-//	DeliveryGuarantee: pubsub.AtLeastOnce,
-//})
+type NewQueryResultEvent struct{ Advertisement marktplaats.Advertisement }
+
+var NewAds = pubsub.NewTopic[*NewQueryResultEvent]("results", pubsub.TopicConfig{
+	DeliveryGuarantee: pubsub.AtLeastOnce,
+})
 
 //
 //// Send a welcome email to everyone who signed up in the last two hours.
@@ -63,7 +64,7 @@ func (srv *Service) CheckAll(ctx context.Context) error {
 			Category:           u.Category,
 			SubCategory:        u.SubCategory,
 		})
-		//Results.Publish(ctx, &NewQueryResultEvent{UserID: u.ID})
+		//NewAds.Publish(ctx, &NewQueryResultEvent{UserID: u.ID})
 	}
 
 	return nil
@@ -153,23 +154,6 @@ type QueryResponse struct {
 	Advertisements []marktplaats.Advertisement `json:"advertisements"`
 }
 
-//
-//type Location struct {
-//	CityName string `json:"city_name"`
-//}
-//
-//type Advertisement struct {
-//	ID        string    `json:"id"`
-//	Title     string    `json:"title"`
-//	Location  Location  `json:"location"`
-//	PriceInfo PriceInfo `json:"price_info"`
-//	URL       string    `json:"url"`
-//}
-//
-//type PriceInfo struct {
-//	PriceCents int `json:"price_cents"`
-//}
-
 type RunParams struct {
 	Limit              int
 	Offset             int
@@ -199,16 +183,6 @@ func (srv *Service) Run(ctx context.Context, id string) (*QueryResponse, error) 
 		return nil, err
 	}
 
-	//bar := lo.Map(res.Advertisements, func(v marktplaats.Advertisement, _ int) Advertisement {
-	//	return Advertisement{
-	//		ID:        v.ID,
-	//		Title:     v.Title,
-	//		Location:  Location{},
-	//		PriceInfo: PriceInfo{},
-	//		URL:       v.URL,
-	//	}
-	//})
-
 	stored, err := getResultIDsFromDB(ctx, id)
 	if err != nil {
 		return nil, err
@@ -237,6 +211,11 @@ func (srv *Service) Run(ctx context.Context, id string) (*QueryResponse, error) 
 		return nil, errs.Wrap(err, "could not write query results to db")
 	}
 
+	lo.ForEach(newAds, func(ad marktplaats.Advertisement, _ int) {
+		if _, err := NewAds.Publish(ctx, &NewQueryResultEvent{Advertisement: ad}); err != nil {
+			rlog.Error("could not publish new ad", "err", err)
+		}
+	})
 	foo := &QueryResponse{
 		Advertisements: newAds,
 	}
