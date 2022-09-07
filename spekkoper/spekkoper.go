@@ -36,7 +36,7 @@ func initService() (*Service, error) {
 
 type NewQueryResultEvent struct{ Advertisement marktplaats.Advertisement }
 
-var NewAds = pubsub.NewTopic[*NewQueryResultEvent]("results", pubsub.TopicConfig{
+var NewAds = pubsub.NewTopic[*NewQueryResultEvent]("new-advertisements", pubsub.TopicConfig{
 	DeliveryGuarantee: pubsub.AtLeastOnce,
 })
 
