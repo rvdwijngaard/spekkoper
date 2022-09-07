@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -18,14 +19,16 @@ var _ = pubsub.NewSubscription(
 )
 
 func SendWelcomeEmail(ctx context.Context, event *spekkoper.NewQueryResultEvent) error {
-	req, _ := http.NewRequest("POST", "https://ntfy.sh/spekkoper",
-		strings.NewReader(event.Advertisement.Title))
-	req.Header.Set("Click", event.Advertisement.URL)
+	ad := event.Advertisement
 
+	body := strings.NewReader(fmt.Sprintf("%s\nprijs: %d\n%s", ad.Description, ad.PriceInfo, ad.Location))
+
+	req, _ := http.NewRequest("POST", "https://ntfy.sh/spekkoper", body)
+	req.Header.Set("Click", event.Advertisement.URL)
+	req.Header.Set("X-Title", event.Advertisement.Title)
 	lo.ForEach(event.Advertisement.ImageUrls, func(url string, _ int) {
 		req.Header.Set("Attach", "https:"+url)
 	})
-	//req.Header.Set("Actions", "http, Open door, https://api.nest.com/open/yAxkasd, clear=true")
 	req.Header.Set("Email", "ronvanderwijngaard@kliksafe.nl")
 	_, err := http.DefaultClient.Do(req)
 	return err

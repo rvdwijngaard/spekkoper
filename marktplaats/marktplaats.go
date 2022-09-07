@@ -78,12 +78,13 @@ type Location struct {
 }
 
 type Advertisement struct {
-	ID        string
-	Title     string
-	Location  Location
-	PriceInfo PriceInfo
-	URL       string
-	ImageUrls []string
+	ID          string
+	Title       string
+	Location    Location
+	PriceInfo   PriceInfo
+	URL         string
+	ImageUrls   []string
+	Description string
 }
 
 type PriceInfo struct {
@@ -117,8 +118,9 @@ func Query(ctx context.Context, q QueryRequest) (*QueryResponse, error) {
 			PriceInfo: PriceInfo{
 				PriceCents: listing.PriceInfo.PriceCents,
 			},
-			URL:       "https://marktplaats.nl" + listing.VipUrl,
-			ImageUrls: listing.ImageUrls,
+			URL:         "https://marktplaats.nl" + listing.VipUrl,
+			ImageUrls:   listing.ImageUrls,
+			Description: listing.Description,
 		}
 	})
 
