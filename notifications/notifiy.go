@@ -19,8 +19,9 @@ var _ = pubsub.NewSubscription(
 
 func SendWelcomeEmail(ctx context.Context, event *spekkoper.NewQueryResultEvent) error {
 	req, _ := http.NewRequest("POST", "https://ntfy.sh/spekkoper",
-		strings.NewReader(`New advertisement. 🐶`))
+		strings.NewReader(event.Advertisement.Title))
 	req.Header.Set("Click", event.Advertisement.URL)
+
 	lo.ForEach(event.Advertisement.ImageUrls, func(url string, _ int) {
 		req.Header.Set("Attach", "https:"+url)
 	})
