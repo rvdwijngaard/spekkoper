@@ -1,3 +1,3 @@
 {
-        "id" :"spekkoper-okfi,
+        "id" :"spekkoper-okfi"
 }

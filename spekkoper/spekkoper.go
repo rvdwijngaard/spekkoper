@@ -11,6 +11,27 @@ import (
 	"github.com/samber/lo"
 )
 
+type marktplaatsClient interface {
+	Query(ctx context.Context, request marktplaats.QueryRequest) (*marktplaats.QueryResponse, error)
+}
+
+type mclient struct{}
+
+func (m *mclient) Query(ctx context.Context, request marktplaats.QueryRequest) (*marktplaats.QueryResponse, error) {
+	return marktplaats.Query(ctx, request)
+}
+
+// encore:service
+type Service struct {
+	marktplaats marktplaatsClient
+}
+
+func initService() (*Service, error) {
+	return &Service{
+		marktplaats: &mclient{},
+	}, nil
+}
+
 //
 //type NewQueryResultEvent struct{ UserID string }
 //
@@ -26,16 +47,13 @@ import (
 //	Endpoint: CheckAll,
 //})
 
-// CheckAll checks all registered queries for changes
-//
-//encore:api public
-func CheckAll(ctx context.Context) error {
+func (srv *Service) CheckAll(ctx context.Context) error {
 	queries, err := getAllRegisteredQueries(ctx)
 	if err != nil {
 		return errs.Wrap(err, "failed to list all registered queries")
 	}
 	for _, u := range queries {
-		marktplaats.Query(ctx, marktplaats.QueryRequest{
+		srv.marktplaats.Query(ctx, marktplaats.QueryRequest{
 			Query:              u.Query,
 			PostCode:           u.PostCode,
 			DistanceMeters:     u.DistanceMeters,
@@ -79,8 +97,10 @@ type Query struct {
 	DistanceMeters int
 }
 
-//encore:api public path=/register method=POST
-func RegisterNewQuery(ctx context.Context, p Query) (*Query, error) {
+// Post creates a new query
+//
+//encore:api public path=/query method=POST
+func Post(ctx context.Context, p Query) (*Query, error) {
 	id, err := generateID()
 	if err != nil {
 		return nil, err
@@ -99,7 +119,9 @@ func Get(ctx context.Context, id string) (*Query, error) {
 }
 
 func get(ctx context.Context, id string) (*Query, error) {
-	u := &Query{}
+	u := &Query{
+		ID: id,
+	}
 	err := sqldb.QueryRow(ctx, `
         SELECT query, category, sub_category, postcode, distance_meters FROM query
         WHERE id = $1
@@ -128,33 +150,42 @@ func generateID() (string, error) {
 }
 
 type QueryResponse struct {
-	Advertisements []Advertisement `json:"advertisements"`
+	Advertisements []marktplaats.Advertisement `json:"advertisements"`
 }
 
-type Location struct {
-	CityName string `json:"city_name"`
+//
+//type Location struct {
+//	CityName string `json:"city_name"`
+//}
+//
+//type Advertisement struct {
+//	ID        string    `json:"id"`
+//	Title     string    `json:"title"`
+//	Location  Location  `json:"location"`
+//	PriceInfo PriceInfo `json:"price_info"`
+//	URL       string    `json:"url"`
+//}
+//
+//type PriceInfo struct {
+//	PriceCents int `json:"price_cents"`
+//}
+
+type RunParams struct {
+	Limit              int
+	Offset             int
+	IncludeCommercials bool
 }
 
-type Advertisement struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Location  Location  `json:"location"`
-	PriceInfo PriceInfo `json:"price_info"`
-	URL       string    `json:"url"`
-}
-
-type PriceInfo struct {
-	PriceCents int `json:"price_cents"`
-}
-
-//encore:api path=/check/:id
-func Check(ctx context.Context, id string) (*QueryResponse, error) {
+// Run executes a stored query
+//
+//encore:api path=/query/:id/run
+func (srv *Service) Run(ctx context.Context, id string) (*QueryResponse, error) {
 	q, err := get(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := marktplaats.Query(ctx, marktplaats.QueryRequest{
+	res, err := srv.marktplaats.Query(ctx, marktplaats.QueryRequest{
 		Query:              q.Query,
 		PostCode:           q.PostCode,
 		DistanceMeters:     q.DistanceMeters,
@@ -168,22 +199,22 @@ func Check(ctx context.Context, id string) (*QueryResponse, error) {
 		return nil, err
 	}
 
-	bar := lo.Map(res.Advertisements, func(v marktplaats.Advertisement, _ int) Advertisement {
-		return Advertisement{
-			ID:        v.ID,
-			Title:     v.Title,
-			Location:  Location{},
-			PriceInfo: PriceInfo{},
-			URL:       v.URL,
-		}
-	})
+	//bar := lo.Map(res.Advertisements, func(v marktplaats.Advertisement, _ int) Advertisement {
+	//	return Advertisement{
+	//		ID:        v.ID,
+	//		Title:     v.Title,
+	//		Location:  Location{},
+	//		PriceInfo: PriceInfo{},
+	//		URL:       v.URL,
+	//	}
+	//})
 
 	stored, err := getResultIDsFromDB(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	newAds := lo.Filter(bar, func(advertisement Advertisement, _ int) bool {
+	newAds := lo.Filter(res.Advertisements, func(advertisement marktplaats.Advertisement, _ int) bool {
 		return !lo.Contains(stored, advertisement.ID)
 	})
 
@@ -193,7 +224,7 @@ func Check(ctx context.Context, id string) (*QueryResponse, error) {
 	}
 
 	// get results of the current stuff
-	lo.ForEach(newAds, func(advertisement Advertisement, _ int) {
+	lo.ForEach(newAds, func(advertisement marktplaats.Advertisement, _ int) {
 		err = storeResult(ctx, id, advertisement)
 	})
 	if err != nil {
@@ -212,11 +243,11 @@ func Check(ctx context.Context, id string) (*QueryResponse, error) {
 	return foo, nil
 }
 
-func storeResult(ctx context.Context, queryID string, advertisement Advertisement) error {
+func storeResult(ctx context.Context, queryID string, ad marktplaats.Advertisement) error {
 	_, err := sqldb.Exec(ctx, `
-        INSERT INTO query_result (query_id, result_id)
-        VALUES ($1, $2)
-    `, queryID, advertisement.ID)
+        INSERT INTO query_result (query_id, result_id, title, city, url, price_in_cents)
+        VALUES ($1, $2, $3, $4, $5, $6)
+    `, queryID, ad.ID, ad.Title, ad.Location.CityName, ad.URL, ad.PriceInfo.PriceCents)
 
 	return err
 }
@@ -225,7 +256,7 @@ func getResultIDsFromDB(ctx context.Context, queryID string) ([]string, error) {
 	query := `
 		SELECT result_id
         FROM query_result 
-        WHERE id = $1
+        WHERE query_id = $1
 	`
 	rows, err := sqldb.Query(ctx, query, queryID)
 	if err != nil {
