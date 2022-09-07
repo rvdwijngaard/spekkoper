@@ -83,6 +83,7 @@ type Advertisement struct {
 	Location  Location
 	PriceInfo PriceInfo
 	URL       string
+	ImageUrls []string
 }
 
 type PriceInfo struct {
@@ -106,9 +107,8 @@ func Query(ctx context.Context, q QueryRequest) (*QueryResponse, error) {
 		})
 	}
 
-	ads := make([]Advertisement, len(listings))
-	for i, listing := range listings {
-		ads[i] = Advertisement{
+	ads := lo.Map(listings, func(listing Listing, _ int) Advertisement {
+		return Advertisement{
 			ID:    listing.ItemId,
 			Title: listing.Title,
 			Location: Location{
@@ -117,9 +117,10 @@ func Query(ctx context.Context, q QueryRequest) (*QueryResponse, error) {
 			PriceInfo: PriceInfo{
 				PriceCents: listing.PriceInfo.PriceCents,
 			},
-			URL: "https://marktplaats.nl" + listing.VipUrl,
+			URL:       "https://marktplaats.nl" + listing.VipUrl,
+			ImageUrls: listing.ImageUrls,
 		}
-	}
+	})
 
 	return &QueryResponse{Advertisements: ads}, nil
 }

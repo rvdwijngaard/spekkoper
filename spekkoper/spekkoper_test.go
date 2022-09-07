@@ -84,10 +84,17 @@ func TestRun(t *testing.T) {
 				PriceInfo: marktplaats.PriceInfo{
 					PriceCents: 10,
 				},
-				URL: "https://foo.bar.com",
+				URL:       "https://foo.bar.com",
+				ImageUrls: []string{"https://foo.png", "https://bar.jpg"},
 			},
 		},
 	}, nil).Once()
+
+	t.Run("get the query", func(t *testing.T) {
+		res, err := Get(ctx, id)
+		assert.NoError(t, err)
+		assert.Equal(t, id, res.ID)
+	})
 
 	s := &Service{
 		marktplaats: m,
@@ -97,8 +104,8 @@ func TestRun(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Len(t, res.Advertisements, 1)
-
-	t.Run("get new items", func(t *testing.T) {
+	imageUrls := []string{"foo", "bar", "baz"}
+	t.Run("run the query again", func(t *testing.T) {
 		m.On("Query", mock.Anything, marktplaats.QueryRequest{
 			Query:              q.Query,
 			PostCode:           q.PostCode,
@@ -119,7 +126,8 @@ func TestRun(t *testing.T) {
 					PriceInfo: marktplaats.PriceInfo{
 						PriceCents: 100,
 					},
-					URL: "https://foo.bar.com",
+					URL:       "https://foo.bar.com",
+					ImageUrls: imageUrls,
 				},
 			},
 		}, nil).Once()
@@ -128,5 +136,6 @@ func TestRun(t *testing.T) {
 		assert.NotNil(t, res)
 		assert.Len(t, res.Advertisements, 1)
 		assert.Equal(t, "bar", res.Advertisements[0].ID)
+		assert.Equal(t, imageUrls, res.Advertisements[0].ImageUrls)
 	})
 }

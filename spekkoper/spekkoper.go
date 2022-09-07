@@ -224,9 +224,9 @@ func (srv *Service) Run(ctx context.Context, id string) (*QueryResponse, error) 
 
 func storeResult(ctx context.Context, queryID string, ad marktplaats.Advertisement) error {
 	_, err := sqldb.Exec(ctx, `
-        INSERT INTO query_result (query_id, result_id, title, city, url, price_in_cents)
-        VALUES ($1, $2, $3, $4, $5, $6)
-    `, queryID, ad.ID, ad.Title, ad.Location.CityName, ad.URL, ad.PriceInfo.PriceCents)
+        INSERT INTO query_result (query_id, result_id, title, city, url, price_in_cents, image_urls)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, queryID, ad.ID, ad.Title, ad.Location.CityName, ad.URL, ad.PriceInfo.PriceCents, ad.ImageUrls)
 
 	return err
 }
