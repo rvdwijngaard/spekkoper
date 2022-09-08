@@ -21,7 +21,7 @@ var _ = pubsub.NewSubscription(
 func SendWelcomeEmail(ctx context.Context, event *spekkoper.NewQueryResultEvent) error {
 	ad := event.Advertisement
 
-	body := strings.NewReader(fmt.Sprintf("%s\nprijs: %d\n%s", ad.Description, ad.PriceInfo, ad.Location))
+	body := strings.NewReader(fmt.Sprintf("%s\nprijs: €%d\n%s", ad.Description, ad.PriceInfo.PriceCents/100, ad.Location.CityName))
 
 	req, _ := http.NewRequest("POST", "https://ntfy.sh/spekkoper", body)
 	req.Header.Set("Click", event.Advertisement.URL)
