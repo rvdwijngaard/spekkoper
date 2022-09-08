@@ -31,6 +31,11 @@ func TestRegisterNewQuery(t *testing.T) {
 		_, err := Get(ctx, "foo")
 		assert.Error(t, err)
 	})
+	t.Run("delete the query", func(t *testing.T) {
+		err := Delete(ctx, res.ID)
+		assert.NoError(t, err)
+
+	})
 }
 
 type mpMock struct {

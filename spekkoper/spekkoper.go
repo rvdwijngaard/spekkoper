@@ -149,6 +149,21 @@ func Get(ctx context.Context, id string) (*Query, error) {
 	return get(ctx, id)
 }
 
+// Delete deletes the query configuration for the id.
+//
+//encore:api public method=DELETE path=/query/:id
+func Delete(ctx context.Context, id string) error {
+	_, err := sqldb.Exec(ctx, "DELETE FROM query_result WHERE query_id=$1", id)
+	if err != nil {
+		return err
+	}
+	_, err = sqldb.Exec(ctx, "DELETE FROM query WHERE id=$1", id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func get(ctx context.Context, id string) (*Query, error) {
 	u := &Query{
 		ID: id,
