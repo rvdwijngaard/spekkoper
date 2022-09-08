@@ -20,4 +20,9 @@ func TestParseURL(t *testing.T) {
 		assert.Equal(t, 50000, res.DistanceMeters)
 		assert.Equal(t, []int{31, 32, 4205}, res.AttributesByID)
 	}
+
+	t.Run("pass in an invalid URL", func(t *testing.T) {
+		_, err := ParseURL(context.TODO(), "invalid uri")
+		assert.Error(t, err)
+	})
 }

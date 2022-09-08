@@ -21,7 +21,7 @@ const baseURL = "https://marktplaats.nl/lrp/api/search"
 func extractCategoriesFromHtml(rawURL string) (map[string]int, error) {
 	res, err := http.Get(rawURL)
 	if err != nil {
-
+		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
