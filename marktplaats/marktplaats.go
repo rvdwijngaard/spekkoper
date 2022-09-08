@@ -104,7 +104,9 @@ func Query(ctx context.Context, q QueryRequest) (*QueryResponse, error) {
 			return l.SellerInformation.SellerWebsiteUrl == "" || !l.SellerInformation.ShowWebsiteUrl
 		})
 	}
-
+	listings = lo.Filter(listings, func(l Listing, _ int) bool {
+		return l.PriceInfo.PriceType != "RESERVED"
+	})
 	ads := lo.Map(listings, func(listing Listing, _ int) Advertisement {
 		return Advertisement{
 			ID:    listing.ItemId,
@@ -118,6 +120,7 @@ func Query(ctx context.Context, q QueryRequest) (*QueryResponse, error) {
 			URL:         "https://marktplaats.nl" + listing.VipUrl,
 			ImageUrls:   listing.ImageUrls,
 			Description: listing.Description,
+			Date:        listing.Date,
 		}
 	})
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"encore.app/spekkoper"
 	"encore.dev/pubsub"
@@ -21,7 +22,7 @@ var _ = pubsub.NewSubscription(
 func SendWelcomeEmail(ctx context.Context, event *spekkoper.NewQueryResultEvent) error {
 	ad := event.Advertisement
 
-	body := strings.NewReader(fmt.Sprintf("%s\nprijs: €%d\n%s", ad.Description, ad.PriceInfo.PriceCents/100, ad.Location.CityName))
+	body := strings.NewReader(fmt.Sprintf("%s\ndatum:%s\nprijs: €%d\n%s", ad.Date.Format(time.RFC3339), ad.Description, ad.PriceInfo.PriceCents/100, ad.Location.CityName))
 
 	req, _ := http.NewRequest("POST", "https://ntfy.sh/spekkoper", body)
 	req.Header.Set("Click", event.Advertisement.URL)

@@ -3,6 +3,7 @@ package marktplaats
 import (
 	"net/url"
 	"strconv"
+	"time"
 )
 
 type QueryRequest struct {
@@ -79,6 +80,7 @@ type Advertisement struct {
 	URL         string
 	ImageUrls   []string
 	Description string
+	Date        time.Time
 }
 
 type PriceInfo struct {
