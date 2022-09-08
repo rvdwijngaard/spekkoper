@@ -30,7 +30,7 @@ func TestRegisterNewQuery(t *testing.T) {
 	t.Run("list all queries", func(t *testing.T) {
 		qs, err := List(ctx)
 		assert.NoError(t, err)
-		assert.Len(t, qs, 1)
+		assert.Len(t, qs.Queries, 1)
 	})
 	t.Run("get a non existent query", func(t *testing.T) {
 		_, err := Get(ctx, "foo")

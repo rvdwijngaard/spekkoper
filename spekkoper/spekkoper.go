@@ -164,7 +164,14 @@ func Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func List(ctx context.Context) ([]Query, error) {
+type ListResult struct {
+	Queries []Query
+}
+
+// Lists all registered queris
+//
+//encore:api public method=GET path=/query
+func List(ctx context.Context) (*ListResult, error) {
 	query := `
 		SELECT id, query, category,sub_category,postcode, 	distance_meters,attributes_by_id
         FROM query         
@@ -184,7 +191,7 @@ func List(ctx context.Context) ([]Query, error) {
 		}
 		queries = append(queries, q)
 	}
-	return queries, nil
+	return &ListResult{queries}, nil
 }
 
 func get(ctx context.Context, id string) (*Query, error) {
