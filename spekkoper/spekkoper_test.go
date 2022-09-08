@@ -16,6 +16,7 @@ func TestRegisterNewQuery(t *testing.T) {
 		SubCategory:    20,
 		PostCode:       "0000XX",
 		DistanceMeters: 99,
+		AttributesByID: []int{1, 2, 3},
 	}
 	ctx := context.TODO()
 	res, err := Post(ctx, PostQueryRequest{Query: q})

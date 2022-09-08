@@ -133,9 +133,10 @@ func Post(ctx context.Context, r PostQueryRequest) (*Query, error) {
 	if err != nil {
 		return nil, err
 	}
+	q.ID = id
 	if err != nil {
 		return nil, err
-	} else if err := insert(ctx, id, q.Query, q.Category, q.SubCategory, q.PostCode, q.DistanceMeters, q.AttributesByID); err != nil {
+	} else if err := insert(ctx, q.ID, q.Query, q.Category, q.SubCategory, q.PostCode, q.DistanceMeters, q.AttributesByID); err != nil {
 		return nil, err
 	}
 	return &q, nil
@@ -153,9 +154,9 @@ func get(ctx context.Context, id string) (*Query, error) {
 		ID: id,
 	}
 	err := sqldb.QueryRow(ctx, `
-        SELECT query, category, sub_category, postcode, distance_meters FROM query
+        SELECT query, category, sub_category, postcode, distance_meters, attributes_by_id FROM query
         WHERE id = $1
-    `, id).Scan(&u.Query, &u.Category, &u.SubCategory, &u.PostCode, &u.DistanceMeters)
+    `, id).Scan(&u.Query, &u.Category, &u.SubCategory, &u.PostCode, &u.DistanceMeters, &u.AttributesByID)
 
 	return u, err
 }
