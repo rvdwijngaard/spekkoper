@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"net/http"
+	"net/http/httputil"
 
 	"encore.app/marktplaats"
 	"encore.dev/beta/errs"
@@ -47,6 +49,16 @@ var _ = cron.NewJob("run-all-registered-queries", cron.JobConfig{
 	Every:    1 * cron.Minute,
 	Endpoint: CheckAll,
 })
+
+// Webhook receives incoming webhooks from aut0
+//
+//encore:api public raw
+func Webhook(w http.ResponseWriter, req *http.Request) {
+	if b, err := httputil.DumpRequest(req, true); err == nil {
+		rlog.Info("got a webhook", "payload", string(b))
+	}
+	w.WriteHeader(http.StatusOK)
+}
 
 //encore:api private
 func CheckAll(ctx context.Context) error {
