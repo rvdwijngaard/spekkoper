@@ -3,92 +3,89 @@ package marktplaats
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"encore.dev/beta/errs"
+	"github.com/PuerkitoBio/goquery"
+	"github.com/mitchellh/mapstructure"
 	"github.com/samber/lo"
 )
 
-type QueryRequest struct {
-	// Query defines the foo
-	Query              string
-	PostCode           string
-	DistanceMeters     int
-	Limit              int
-	Offset             int
-	IncludeCommercials bool
-	Category           int
-	SubCategory        int
-}
-
 const baseURL = "https://marktplaats.nl/lrp/api/search"
 
-func (qr QueryRequest) url() (string, error) {
-	uri, err := url.Parse(baseURL)
+func extractCategoriesFromHtml(rawURL string) (map[string]int, error) {
+	res, err := http.Get(rawURL)
 	if err != nil {
-		return "", err
+
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
+	}
+	// Load the HTML document
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return nil, errs.Wrap(err, "could not parse html to extract categories")
 	}
 
-	params := url.Values{}
-	params.Add("searchInTitleAndDescription", "true")
-	params.Add("viewOptions", "list-view")
-	limit := 30
-	if qr.Limit > 0 {
-		limit = qr.Limit
-	}
-	params.Add("limit", strconv.Itoa(limit))
-	offset := 0
-	if qr.Offset > 0 {
-		offset = qr.Offset
-	}
-	params.Add("offset", strconv.Itoa(offset))
-	if qr.Query != "" {
-		params.Add("query", qr.Query)
-	}
-	if qr.PostCode != "" {
-		params.Add("postcode", qr.PostCode)
-	}
-	if qr.DistanceMeters > 0 {
-		params.Add("distanceMeters", strconv.Itoa(qr.DistanceMeters))
-	}
-	if qr.Category > 0 {
-		params.Add("l1CategoryId", strconv.Itoa(qr.Category))
-	}
-	if qr.SubCategory > 0 {
-		params.Add("l2CategoryId", strconv.Itoa(qr.SubCategory))
-	}
-
-	uri.RawQuery = params.Encode()
-	return uri.String(), nil
+	opts := doc.Find("select[name='categoryId']").Find("option")
+	categories := map[string]int{}
+	opts.Each(func(i int, selection *goquery.Selection) {
+		attr, _ := selection.Attr("value")
+		id, _ := strconv.Atoi(attr)
+		key := strings.Replace(selection.Text(), " ", "-", -1)
+		key = strings.ToLower(key)
+		categories[key] = id
+	})
+	return categories, nil
 }
 
-func (qr QueryRequest) Validate() error {
-	return nil
-}
+func ParseURL(ctx context.Context, rawURL string) (*QueryRequest, error) {
+	//  "https://www.marktplaats.nl/l/huis-en-inrichting/kachels/#q:zibro|f:31,32,4205|distanceMeters:50000|postcode:3461CC"
+	uri, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	categories, err := extractCategoriesFromHtml(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	attrs := map[string]interface{}{}
 
-type QueryResponse struct {
-	Advertisements []Advertisement `json:"advertisements"`
-}
+	// parse categories from path
+	path := strings.Split(uri.Path, "/")
+	if len(path) > 4 {
+		attrs["category"] = categories[path[2]]
+		attrs["sub_category"] = categories[path[3]]
+	}
 
-type Location struct {
-	CityName string
-}
+	// parse attributes from uri fragment
+	for _, s := range strings.Split(uri.Fragment, "|") {
+		x := strings.Split(s, ":")
+		if len(x) == 2 {
+			attrs[x[0]] = x[1]
+		}
+	}
+	q := QueryRequest{}
+	config := &mapstructure.DecoderConfig{
+		WeaklyTypedInput: true,
+		Result:           &q,
+		DecodeHook:       mapstructure.StringToSliceHookFunc(","),
+	}
 
-type Advertisement struct {
-	ID          string
-	Title       string
-	Location    Location
-	PriceInfo   PriceInfo
-	URL         string
-	ImageUrls   []string
-	Description string
-}
-
-type PriceInfo struct {
-	PriceCents int
+	decoder, err := mapstructure.NewDecoder(config)
+	if err != nil {
+		return nil, err
+	}
+	if err := decoder.Decode(attrs); err != nil {
+		return nil, err
+	}
+	return &q, nil
 }
 
 func Query(ctx context.Context, q QueryRequest) (*QueryResponse, error) {

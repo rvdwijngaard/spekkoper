@@ -92,20 +92,53 @@ type Query struct {
 	SubCategory    int
 	PostCode       string
 	DistanceMeters int
+	AttributesByID []int
+}
+
+type PostQueryRequest struct {
+	// QueryURL is the markplaats query URL copied from the browser,
+	// for example: https://www.marktplaats.nl/l/huis-en-inrichting/kachels/#q:zibro|f:31,32,4205|distanceMeters:50000|postcode:3901EF
+	QueryURL string
+	Query    Query
+}
+
+func parseQueryFromURL(ctx context.Context, queryURL string) (Query, error) {
+	res, err := marktplaats.ParseURL(ctx, queryURL)
+	if err != nil {
+		return Query{}, err
+	}
+	return Query{
+		Query:          res.Query,
+		Category:       res.Category,
+		SubCategory:    res.SubCategory,
+		PostCode:       res.PostCode,
+		DistanceMeters: res.DistanceMeters,
+		AttributesByID: res.AttributesByID,
+	}, nil
 }
 
 // Post creates a new query
 //
 //encore:api public path=/query method=POST
-func Post(ctx context.Context, p Query) (*Query, error) {
+func Post(ctx context.Context, r PostQueryRequest) (*Query, error) {
+	q := r.Query
+	if r.QueryURL != "" {
+		var err error
+		q, err = parseQueryFromURL(ctx, r.QueryURL)
+		if err != nil {
+			return nil, err
+		}
+	}
 	id, err := generateID()
 	if err != nil {
 		return nil, err
-	} else if err := insert(ctx, id, p.Query, p.Category, p.SubCategory, p.PostCode, p.DistanceMeters); err != nil {
+	}
+	if err != nil {
+		return nil, err
+	} else if err := insert(ctx, id, q.Query, q.Category, q.SubCategory, q.PostCode, q.DistanceMeters, q.AttributesByID); err != nil {
 		return nil, err
 	}
-	p.ID = id
-	return &p, nil
+	return &q, nil
 }
 
 // Get retrieves the query configuration for the id.
@@ -128,11 +161,11 @@ func get(ctx context.Context, id string) (*Query, error) {
 }
 
 // insert a query into the database.
-func insert(ctx context.Context, id, query string, category, subCategory int, postcode string, distance int) error {
+func insert(ctx context.Context, id, query string, category, subCategory int, postcode string, distance int, attrs []int) error {
 	_, err := sqldb.Exec(ctx, `
-        INSERT INTO query (id, query, category, sub_category, postcode, distance_meters )
-        VALUES ($1, $2, $3, $4, $5, $6)
-    `, id, query, category, subCategory, postcode, distance)
+        INSERT INTO query (id, query, category, sub_category, postcode, distance_meters, attributes_by_id )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, id, query, category, subCategory, postcode, distance, attrs)
 
 	return err
 }

@@ -18,7 +18,7 @@ func TestRegisterNewQuery(t *testing.T) {
 		DistanceMeters: 99,
 	}
 	ctx := context.TODO()
-	res, err := Post(ctx, q)
+	res, err := Post(ctx, PostQueryRequest{Query: q})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, res.ID)
 	t.Run("get the query by its id", func(t *testing.T) {
@@ -46,7 +46,7 @@ func (m *mpMock) Query(ctx context.Context, request marktplaats.QueryRequest) (*
 }
 
 func TestRun(t *testing.T) {
-	q := &Query{
+	query := Query{
 		Query:          "bikes",
 		Category:       10,
 		SubCategory:    20,
@@ -55,7 +55,7 @@ func TestRun(t *testing.T) {
 	}
 	ctx := context.TODO()
 	var err error
-	q, err = Post(ctx, *q)
+	q, err := Post(ctx, PostQueryRequest{Query: query})
 	if err != nil {
 		t.Fatal(err)
 	}
