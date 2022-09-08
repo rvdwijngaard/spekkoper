@@ -19,6 +19,10 @@ var _ = pubsub.NewSubscription(
 	},
 )
 
+var secrets struct {
+	ForwardEmailAddress string // ed25519 private key for SSH server
+}
+
 func SendWelcomeEmail(ctx context.Context, event *spekkoper.NewQueryResultEvent) error {
 	ad := event.Advertisement
 
@@ -30,7 +34,7 @@ func SendWelcomeEmail(ctx context.Context, event *spekkoper.NewQueryResultEvent)
 	lo.ForEach(event.Advertisement.ImageUrls, func(url string, _ int) {
 		req.Header.Set("Attach", "https:"+url)
 	})
-	req.Header.Set("Email", "ronvanderwijngaard@kliksafe.nl")
+	req.Header.Set("Email", secrets.ForwardEmailAddress)
 	_, err := http.DefaultClient.Do(req)
 	return err
 }
