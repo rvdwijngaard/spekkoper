@@ -164,6 +164,29 @@ func Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+func List(ctx context.Context) ([]Query, error) {
+	query := `
+		SELECT id, query, category,sub_category,postcode, 	distance_meters,attributes_by_id
+        FROM query         
+	`
+	rows, err := sqldb.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var queries []Query
+	for rows.Next() {
+		var q Query
+		err := rows.Scan(&q.ID, &q.Query, &q.Category, &q.SubCategory, &q.PostCode, &q.DistanceMeters, &q.AttributesByID)
+		if err != nil {
+			return nil, err
+		}
+		queries = append(queries, q)
+	}
+	return queries, nil
+}
+
 func get(ctx context.Context, id string) (*Query, error) {
 	u := &Query{
 		ID: id,
