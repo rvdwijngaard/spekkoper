@@ -4,8 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
+	"io"
 	"net/http"
-	"net/http/httputil"
 
 	"encore.app/marktplaats"
 	"encore.dev/beta/errs"
@@ -50,13 +51,31 @@ var _ = cron.NewJob("run-all-registered-queries", cron.JobConfig{
 	Endpoint: CheckAll,
 })
 
+type User struct {
+	UserName string `json:"username"`
+	Email    string `json:"email"`
+}
+
 // Webhook receives incoming webhooks from aut0
 //
 //encore:api public raw
 func Webhook(w http.ResponseWriter, req *http.Request) {
-	if b, err := httputil.DumpRequest(req, true); err == nil {
-		rlog.Info("got a webhook", "payload", string(b))
+	defer req.Body.Close()
+
+	b, err := io.ReadAll(req.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
+	var u User
+	err = json.Unmarshal(b, &u)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	rlog.Info("new user registered", "user", u)
+
 	w.WriteHeader(http.StatusOK)
 }
 
