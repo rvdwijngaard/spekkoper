@@ -4,9 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
-	"io"
-	"net/http"
 
 	"encore.app/marktplaats"
 	"encore.dev/beta/errs"
@@ -54,40 +51,6 @@ var _ = cron.NewJob("run-all-registered-queries", cron.JobConfig{
 type User struct {
 	UserName string `json:"username"`
 	Email    string `json:"email"`
-}
-
-// Webhook receives incoming webhooks from aut0
-//
-//encore:api public raw
-func Webhook(w http.ResponseWriter, req *http.Request) {
-	defer req.Body.Close()
-
-	b, err := io.ReadAll(req.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	rlog.Info("got payload", "payload", string(b))
-
-	var dto struct {
-		Data struct {
-			UserName string `json:"username"`
-			Email    string `json:"email"`
-		}
-	}
-	err = json.Unmarshal(b, &dto)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	var u = User{
-		UserName: dto.Data.UserName,
-		Email:    dto.Data.Email,
-	}
-
-	rlog.Info("new user registered", "user", u)
-
-	w.WriteHeader(http.StatusOK)
 }
 
 //encore:api private
@@ -161,7 +124,7 @@ func parseQueryFromURL(ctx context.Context, queryURL string) (Query, error) {
 
 // Post creates a new query
 //
-//encore:api public path=/query method=POST
+//encore:api auth path=/query method=POST
 func Post(ctx context.Context, r PostQueryRequest) (*Query, error) {
 	q := r.Query
 	if r.QueryURL != "" {
@@ -186,14 +149,14 @@ func Post(ctx context.Context, r PostQueryRequest) (*Query, error) {
 
 // Get retrieves the query configuration for the id.
 //
-//encore:api public method=GET path=/query/:id
+//encore:api auth method=GET path=/query/:id
 func Get(ctx context.Context, id string) (*Query, error) {
 	return get(ctx, id)
 }
 
 // Delete deletes the query configuration for the id.
 //
-//encore:api public method=DELETE path=/query/:id
+//encore:api auth method=DELETE path=/query/:id
 func Delete(ctx context.Context, id string) error {
 	_, err := sqldb.Exec(ctx, "DELETE FROM query_result WHERE query_id=$1", id)
 	if err != nil {
@@ -212,7 +175,7 @@ type ListResult struct {
 
 // Lists all registered queris
 //
-//encore:api public method=GET path=/query
+//encore:api auth method=GET path=/query
 func List(ctx context.Context) (*ListResult, error) {
 	query := `
 		SELECT id, query, category,sub_category,postcode, 	distance_meters,attributes_by_id

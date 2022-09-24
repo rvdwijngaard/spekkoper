@@ -11,6 +11,7 @@ require (
 require (
 	github.com/PuerkitoBio/goquery v1.8.0 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
+	github.com/authorizerdev/authorizer-go v0.0.0-20220918084423-0b0209e2234e // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
