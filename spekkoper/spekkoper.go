@@ -131,6 +131,7 @@ func Post(ctx context.Context, r PostQueryRequest) (*Query, error) {
 		var err error
 		q, err = parseQueryFromURL(ctx, r.QueryURL)
 		if err != nil {
+			rlog.Error("could not parse query from marktplaats URL", "err", err)
 			return nil, err
 		}
 	}
